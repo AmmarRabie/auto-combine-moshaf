@@ -1,0 +1,3 @@
+tests/ex1.wav mp3
+tests/ex2.wav mp3
+tests/ex3.wav mp3
