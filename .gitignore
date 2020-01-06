@@ -1,0 +1,8 @@
+venv/
+output/
+logs/
+*.pyc
+.vscode/
+*.wav
+*.mp3
+*.m4a
