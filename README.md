@@ -13,6 +13,7 @@ then run `python main.py`
 ## available
 - detect start and the end of connected sound
 ## currently in develoing
-- detect 'allah akbar' at the end of the voice
+- detect 'allah akbar' at the end of the voice.
+- create test program that evaluate the perf of program by comparing provided ref ranges and generated hypo ranges.
 ## future features
 - detect start and the end of quran chapters
