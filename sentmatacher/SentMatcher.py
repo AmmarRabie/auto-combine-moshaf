@@ -4,17 +4,16 @@ from bisect import bisect_left
 from itertools import accumulate
 
 class SentMatcher():
-    def __init__(self,corpus="text.txt",minWordLenThresh=4):
+    def __init__(self,corpus="quran-simple-clean.txt",minWordLenThresh=4):
         self.words = []
         self.sentsCummLen = []
         self.minWordLenThresh = minWordLenThresh
-        with open(corpus,"r") as test:
+        with open(corpus,"r", encoding="utf-8") as test:
             sents = [list(self._preprocess(sent.split())) for sent in test.readlines()]
             self.sentsCummLen =  list(accumulate(map(len,sents)))
             self.words = [word for sent in sents for word in sent]
-        
 
-    def match(self,query,terminationThresh = 100,acceptingThresh = .6,queryRejectThresh = 1,dataRejectThresh = 2):
+    def match(self,query,terminationThresh = 100,acceptingThresh = .8,queryRejectThresh = 1,dataRejectThresh = 1):
         #TODO solve haveing more than sent query = query[-2]
         query = self._preprocess(query.split())
         distance = lambda a,b: max(0, 1 - editdistance.eval(a,b) / len(max(b,a)))
@@ -65,9 +64,10 @@ class SentMatcher():
         
 
 if __name__ == "__main__":
-    matcher = SentMatcher("text.txt")
+    # matcher = SentMatcher("text.txt")
+    matcher = SentMatcher("../quran-simple-clean.txt")
 
-    with open("test.txt","r") as test:
+    with open("test.txt","r", encoding="utf-8") as test:
         with open("pred.txt","w") as pred:
             for query in test:
                 matchRange = matcher.match(query)
