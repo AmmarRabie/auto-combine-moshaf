@@ -54,9 +54,12 @@ class SentMatcher():
                         i-= dataRejectThresh+1
                     reset()
             i+=1
-        
-        bestMatch = max(matches,key=lambda matchScorePair: matchScorePair[-1])
-        return self._getSentsRange(bestMatch[0],len(query)),bestMatch[1]
+
+        if(len(matches)):
+            bestMatch = max(matches,key=lambda matchScorePair: matchScorePair[-1])
+            return self._getSentsRange(bestMatch[0],len(query)),bestMatch[1]
+        else:
+            return None,None
 
     def _preprocess(self,sent):
         return sent
