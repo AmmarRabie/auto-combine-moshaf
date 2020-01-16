@@ -13,17 +13,31 @@ class SentMatcher():
             self.sentsCummLen =  list(accumulate(map(len,sents)))
             self.words = [word for sent in sents for word in sent]
 
-    def match(self,query,terminationThresh = 100,acceptingThresh = .8,queryRejectThresh = 1,dataRejectThresh = 1):
-        #TODO solve haveing more than sent query = query[-2]
+    def match(self,query,terminationThresh = 100,acceptingThresh = .6,queryRejectThresh = 2,dataRejectThresh = 4):
+        matches=[]
         query = self._preprocess(query.split())
-        distance = lambda a,b: max(0, 1 - editdistance.eval(a,b) / len(max(b,a)))
+        distance = lambda pred,ref: max(0, 1 - editdistance.eval(pred,ref) / len(pred))
+
         queryI = 0
         dataRejected = 0
         matchStart = None
+        def reset():
+            nonlocal queryI,dataRejected,matchStart
+            queryI = 0
+            dataRejected = 0
+            matchStart = None
+
         i=0
         while i<len(self.words):
-            if(queryI>=terminationThresh-1 or queryI >= len(query)):
+            if(queryI>=terminationThresh-1):
                 return self._getSentsRange(matchStart,len(query))
+
+            if(queryI >= len(query)):
+                refStr = ' '.join(self.words[matchStart:matchStart+len(query)])
+                queryStr = ' '.join(query)
+                confideceScore = distance(queryStr,refStr)
+                matches.append((matchStart,confideceScore))
+                reset()
 
             canSkip = min(len(query)-queryI,queryRejectThresh+1)
             dists = [distance(query[queryI+disp],self.words[i]) for disp in range(canSkip)]
@@ -38,24 +52,24 @@ class SentMatcher():
                 if(dataRejected > dataRejectThresh):
                     if(queryI):
                         i-= dataRejectThresh+1
-                    queryI = 0
-                    dataRejected = 0
-                    matchStart = None
-            
+                    reset()
             i+=1
-        return self._getSentsRange(matchStart,len(query))
+        
+        bestMatch = max(matches,key=lambda matchScorePair: matchScorePair[-1])
+        return self._getSentsRange(bestMatch[0],len(query)),bestMatch[1]
 
     def _preprocess(self,sent):
-        for i,word  in enumerate(sent):
-            if(len(word)>=self.minWordLenThresh):
-                continue
-            if i+1<len(sent):
-                sent[i+1] = sent[i]+sent[i+1] 
-            else:
-                sent[i-1] = sent[i-1]+sent[i] 
+        return sent
+        # for i,word  in enumerate(sent):
+        #     if(len(word)>=self.minWordLenThresh):
+        #         continue
+        #     if i+1<len(sent):
+        #         sent[i+1] = sent[i]+sent[i+1] 
+        #     else:
+        #         sent[i-1] = sent[i-1]+sent[i] 
         
-        res = [word for word in sent if len(word)>=self.minWordLenThresh]
-        return res or sent
+        # res = [word for word in sent if len(word)>=self.minWordLenThresh]
+        # return res or sent
 
     def _getSentsRange(self,i,querySize):
         low = bisect_left(self.sentsCummLen,i+1)
@@ -68,10 +82,13 @@ if __name__ == "__main__":
     matcher = SentMatcher("../quran-simple-clean.txt")
 
     with open("test.txt","r", encoding="utf-8") as test:
-        with open("pred.txt","w") as pred:
+        with open("pred.txt","w",encoding="utf-8") as pred:
             for query in test:
-                matchRange = matcher.match(query)
-                pred.write(" ".join(list(map(str,matchRange)))+"\n")
-    
-    
+                matchRange,score = matcher.match(query)
+                print(matchRange,score)
+                with open("../quran-simple-clean.txt","r", encoding="utf-8") as quran:
+                    ayat=quran.readlines()[matchRange[0]:matchRange[1]+1]
+                    pred.write("".join(ayat)+"--------------\n")
+
+
 
