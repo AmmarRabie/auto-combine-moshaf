@@ -29,10 +29,7 @@ class SentMatcher():
 
         i=0
         while i<len(self.words):
-            if(queryI>=terminationThresh-1):
-                return self._getSentsRange(matchStart,len(query))
-
-            if(queryI >= len(query)):
+            if(queryI >= len(query) or queryI>=terminationThresh-1):
                 refStr = ' '.join(self.words[matchStart:matchStart+len(query)])
                 queryStr = ' '.join(query)
                 confideceScore = distance(queryStr,refStr)
