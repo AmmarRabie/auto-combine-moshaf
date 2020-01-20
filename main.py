@@ -1,9 +1,9 @@
 from configparser import ConfigParser
-from splitter import SalahSplitter
+from splitter.splitter import SalahSplitter
 from pydub import AudioSegment
-from os import makedirs, path
+import os
 
-outDir = "spliiter_out"
+outDir = "splitter_out"
 def main():
     options = readSplitOptions("algo.ini")
     runs = readRuns("input.txt")
@@ -11,7 +11,8 @@ def main():
     for filePath, exportFormat in runs:
         print(filePath, exportFormat)
         audio = AudioSegment.from_file(filePath)
-        splitter.splitWithExport(audio, path.join(outDir, path.basename(filePath)), exportFormat)
+        p = os.path.join(os.path.join(outDir, os.path.dirname(filePath)[3:], os.path.basename(filePath)))
+        splitter.splitWithExport(audio, p , exportFormat)
 
 def readSplitOptions(path):
     configParser = ConfigParser(allow_no_value=True)
@@ -27,11 +28,19 @@ def readSplitOptions(path):
             options[f"{section}_{key}"] = value
     return options
 
-def readRuns(path):
+def readRuns(inputPath):
     runs = []
-    with open(path) as f:
-        runs = f.read().splitlines(False)
-        runs = [r.split(" ") for r in runs]
+    with open(inputPath, encoding="utf-8") as f:
+        origInput = f.read().splitlines(False)
+        # origInput = [r.split(" ") for r in runs]
+        print(origInput)
+        for run in origInput:
+            ipath, fformat = run.split(" ")
+            print(ipath, fformat)
+            if(os.path.isfile(ipath)):
+                runs.append([ipath, fformat])
+            else:
+                runs.extend([ [os.path.join(root, filename), fformat] for root, subdirs, files in os.walk(ipath) if len(subdirs) == 0 for filename in files])
     return runs
 
 if __name__ == "__main__":

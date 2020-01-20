@@ -1,8 +1,10 @@
 # from pyo import *
-from audio_manipulation import detectAudioChanges
+from .audio_manipulation import detectAudioChanges
 from myutils import *
 import logging
 from os import makedirs
+from pydub import AudioSegment
+logging.basicConfig(level=logging.DEBUG)
 
 # optimizations:
 # in adjust range we can make a loop over adjust range with every time update the avergae dbfs after updating the range
@@ -10,7 +12,7 @@ from os import makedirs
 
 # features:
 # we need to detect allah okbar in the end: you may use the info that there is before the end there will be a little drop
-
+from ticktock import tick, tock
 class SalahSplitter:
     def __init__(self, initial_window_size = 0.5 * 60 * 1000, initial_shift_value = 1 * 1000, initial_diff_thre = 6,
      adjust_window_size = 3*1000, adjust_shift_value = 0.5*1000, adjust_diff_thre = 8, min_duration_time = 1 * 60 * 1000):
@@ -24,8 +26,13 @@ class SalahSplitter:
         self.adjust_max_offset = 5 * 60 * 1000
 
     def split(self, audio):
+        silence = AudioSegment.silent(frame_rate=audio.frame_rate, duration=self.initial_window_size)
+        audio = silence.append(audio.append(silence)) # to make sure that we will find changes if file has sound
         cutPositions = detectAudioChanges(audio, window_size=self.initial_window_size, shift_value=self.initial_shift_value, max_diff_thre=self.initial_diff_thre, function="dBFS", algo="minmax")
         cutPositions = list(cutPositions)
+        if (len(cutPositions) <= 1):
+            logging.warn(f"number of changes < 1 (={len(cutPositions)})")
+            print("seems that you have no sound in this audio")
         for lastPos, pos in zip(cutPositions, cutPositions[1:]):
             if(lastPos[1] and (not pos[1])): # transition from increasing to decreasing
                 duration = pos[0] - lastPos[0]
@@ -36,6 +43,9 @@ class SalahSplitter:
                 soundRange = self._adjustSoundRage(audio, soundRange)
                 sound = audio[soundRange[0]:soundRange[1]]
                 yield sound, soundRange
+                del sound
+                import gc
+                gc.collect()
                 
     def splitWithExport(self, audio, outDir, outFormat):
         # sound.export(f"output/{inputPath.replace('.wav', '').replace('/', '.')}_{soundNumber}.wav", format="wav")
@@ -74,7 +84,7 @@ class SalahSplitter:
                 e -= shift
                 offset -= shift
                 if (not (s < initialRange[1] and e > initialRange[0])):
-                    logging.info("can't find a position to start move algo from, bad range !!")
+                    logging.warn("can't find a position to start move algo from, bad range !!")
                     return start
 
             relativeOffset = 0
@@ -90,8 +100,12 @@ class SalahSplitter:
             logging.info(f"end with no change, {timeRepr(relativeOffset)} > {timeRepr(maxOffset)}")
             return start
         getCloser = lambda center, v1, v2: v1 if abs(center - v1) < abs(center - v2) else v2
-        e = approxToNearestSeconds(move(e, self.adjust_shift_value)) + 500 # todo: remove this 500 value or put in paramerers
+        startBias, endBias = 0, 500 # todo: remove this value or put in paramerers
+        e = approxToNearestSeconds(move(e, self.adjust_shift_value))
+        e = min(len(audio), e + endBias)
         s = move(s, -self.adjust_shift_value) #
+        startBias = 0
+        s = max(0, s - startBias)
         logging.info(f"return:{timeRepr(s, e, joint=' ==> ')}")
         return s, e
 
