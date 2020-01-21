@@ -13,7 +13,7 @@ class SentMatcher():
             self.sentsCummLen =  list(accumulate(map(len,sents)))
             self.words = [word for sent in sents for word in sent]
 
-    def match(self,query,terminationThresh = 100,acceptingThresh = .6,queryRejectThresh = 2,dataRejectThresh = 4):
+    def match(self,query,terminationThresh = 50,acceptingThresh = .6,queryRejectThresh = 2,dataRejectThresh = 4):
         matches=[]
         query = self._preprocess(query.split())
         distance = lambda pred,ref: max(0, 1 - editdistance.eval(pred,ref) / len(pred))
@@ -29,10 +29,7 @@ class SentMatcher():
 
         i=0
         while i<len(self.words):
-            if(queryI>=terminationThresh-1):
-                return self._getSentsRange(matchStart,len(query))
-
-            if(queryI >= len(query)):
+            if(queryI >= len(query) or queryI>=terminationThresh-1):
                 refStr = ' '.join(self.words[matchStart:matchStart+len(query)])
                 queryStr = ' '.join(query)
                 confideceScore = distance(queryStr,refStr)
