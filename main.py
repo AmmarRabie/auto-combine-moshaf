@@ -2,6 +2,8 @@ from configparser import ConfigParser
 from splitter.splitter import SalahSplitter
 from pydub import AudioSegment
 import os
+import threading
+from incrementalload import incload
 
 outDir = "splitter_out"
 def main():
@@ -10,9 +12,21 @@ def main():
     splitter = SalahSplitter(**options)
     for filePath, exportFormat in runs:
         print(filePath, exportFormat)
-        audio = AudioSegment.from_file(filePath)
-        p = os.path.join(os.path.join(outDir, os.path.dirname(filePath)[3:], os.path.basename(filePath)))
-        splitter.splitWithExport(audio, p , exportFormat)
+        p = getOutPath(outDir, filePath)
+        
+        chunkAvailableCond = threading.Condition()
+        chunksProducer = threading.Thread(name='chunksProducer', target=incload,
+                     args=(chunkAvailableCond,filePath))
+        chunksProducer.start()
+        while True:
+            with chunkAvailableCond:
+                chunkAvailableCond.wait()
+                print("main continue")
+                if ( not os.path.exists("temp.wav")):
+                    break
+                audio = AudioSegment.from_file("temp.wav")
+                # audio = AudioSegment.from_file(filePath)
+                splitter.splitWithExport(audio, p , exportFormat)
 
 def readSplitOptions(path):
     configParser = ConfigParser(allow_no_value=True)
@@ -29,19 +43,33 @@ def readSplitOptions(path):
     return options
 
 def readRuns(inputPath):
+    extIgnore = []
+    with open(".extignore", "r") as extIgnoreFile:
+        extIgnore.extend([ext for ext in extIgnoreFile.read().split("\n")])
     runs = []
     with open(inputPath, encoding="utf-8") as f:
         origInput = f.read().splitlines(False)
         # origInput = [r.split(" ") for r in runs]
-        print(origInput)
+        # print(origInput)
         for run in origInput:
             ipath, fformat = run.split(" ")
             print(ipath, fformat)
             if(os.path.isfile(ipath)):
+                ext = ipath.split(".")[-1]
+                if ext in extIgnore:
+                    continue
                 runs.append([ipath, fformat])
             else:
-                runs.extend([ [os.path.join(root, filename), fformat] for root, subdirs, files in os.walk(ipath) if len(subdirs) == 0 for filename in files])
+                runs.extend([[os.path.join(root, filename), fformat] for root, subdirs, files in os.walk(ipath) if len(subdirs) == 0 for filename in files if not (filename.split(".")[-1] in extIgnore)])
     return runs
+
+
+
+def getOutPath(baseOutDir, inputPath):
+    nameNoExtension = os.path.basename(inputPath)[::-1].split(".", 1)[-1][::-1]
+    dirPath = os.path.dirname(os.path.abspath(inputPath))[3:]
+    relativePath = os.path.join(dirPath, nameNoExtension)
+    return os.path.join(outDir, relativePath)
 
 if __name__ == "__main__":
     main()

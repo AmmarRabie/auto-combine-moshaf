@@ -47,14 +47,15 @@ class SalahSplitter:
                 import gc
                 gc.collect()
                 
-    def splitWithExport(self, audio, outDir, outFormat):
+    def splitWithExport(self, audio, outDir, outFormat, countFrom = 1):
         # sound.export(f"output/{inputPath.replace('.wav', '').replace('/', '.')}_{soundNumber}.wav", format="wav")
         makedirs(outDir, exist_ok=True)
-        soundNumber = 1
+        
+        soundNumber = countFrom
         for sound, _ in self.split(audio):
             sound.export(f"{outDir}/{soundNumber}.{outFormat}", format=outFormat)
             soundNumber += 1
-
+        return soundNumber - countFrom
     def _adjustSoundRage(self, audio, initialRange):
         '''
             adjust the given start and end positions by applying shorter window size.
