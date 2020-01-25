@@ -3,7 +3,7 @@ from splitter.splitter import SalahSplitter
 from pydub import AudioSegment
 import os
 import threading
-from incrementalload import incload
+from incrementalload import incload, SmartWavLoader
 
 outDir = "splitter_out"
 def main():
@@ -13,20 +13,9 @@ def main():
     for filePath, exportFormat in runs:
         print(filePath, exportFormat)
         p = getOutPath(outDir, filePath)
-        
-        chunkAvailableCond = threading.Condition()
-        chunksProducer = threading.Thread(name='chunksProducer', target=incload,
-                     args=(chunkAvailableCond,filePath))
-        chunksProducer.start()
-        while True:
-            with chunkAvailableCond:
-                chunkAvailableCond.wait()
-                print("main continue")
-                if ( not os.path.exists("temp.wav")):
-                    break
-                audio = AudioSegment.from_file("temp.wav")
-                # audio = AudioSegment.from_file(filePath)
-                splitter.splitWithExport(audio, p , exportFormat)
+        audio = SmartWavLoader(filePath)
+        # audio = AudioSegment.from_file(filePath)
+        splitter.splitWithExport(audio, p , exportFormat)
 
 def readSplitOptions(path):
     configParser = ConfigParser(allow_no_value=True)
@@ -53,7 +42,6 @@ def readRuns(inputPath):
         # print(origInput)
         for run in origInput:
             ipath, fformat = run.split(" ")
-            print(ipath, fformat)
             if(os.path.isfile(ipath)):
                 ext = ipath.split(".")[-1]
                 if ext in extIgnore:
