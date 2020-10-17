@@ -1,8 +1,14 @@
 venv/
 output/
 logs/
+data/
+checkpoints/
 *.pyc
 .vscode/
 *.wav
 *.mp3
 *.m4a
+*.au
+*.aup
+*.log
+*.extignore
