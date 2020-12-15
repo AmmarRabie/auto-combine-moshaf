@@ -11,7 +11,7 @@ class QuranXmlReader():
     '''
     class that can return ayat connected to each other from any aya in any sura to another one
     '''
-    def __init__(self, xmlPath="C:\Data\workspace\qur2an salah splitter\src\chapterfinder\quran-simple-clean.xml"):
+    def __init__(self, xmlPath="C:/Data/workspace/qur2an salah splitter/src/functions/chapterfinder/quran-simple-clean.xml"):
         super().__init__()
         tree = ET.parse(xmlPath)
         self.root = tree.getroot()
@@ -39,7 +39,7 @@ class SearchEngine:
         # self.groupOperator = qparser.OrGroup
 
 
-    def buildIndexer(self, quranReader, indexDataDir="index_data", quranMetaDataPath="C:\Data\workspace\qur2an salah splitter\src\chapterfinder\quran-metadata.xml"):
+    def buildIndexer(self, quranReader, indexDataDir="index_data", quranMetaDataPath="C:/Data/workspace/qur2an salah splitter/src/functions/chapterfinder/quran-metadata.xml"):
         self.schema = fields.Schema(
                     ayat=fields.TEXT(stored=True),
                     pageNum=fields.NUMERIC(stored=True)
@@ -72,6 +72,10 @@ class SearchEngine:
         self.ix = index.open_dir(indexdir)
         self.parser = self._newParser()
 
+    def loadOrBuild(self, indexDir):
+        if(index.exists_in(indexDir)): self.loadIndexer(indexDir)
+        else: self.buildIndexer(QuranXmlReader(), indexDataDir=indexDir)
+
     def search(self, text, limit=None):
         '''
             search using last built or loaded index
@@ -89,23 +93,27 @@ class SearchEngine:
             results.formatter = highlight.NullFormatter()
             results.order = highlight.SCORE
             locations = []
+            hits = []
             for hit in results:
                 pageNum = hit["pageNum"]
                 # print(hit["pageNum"], str(hit.score))
                 topHighlight = hit.highlights("ayat", top=1)
                 # print(topHighlight)
                 fragments = []
-                with open(f"../quran_pages/{pageNum}.json") as f:
+                with open(f"C:\Data\workspace\qur2an salah splitter\src\chapterfinder\search_engine\quran_pages/{pageNum}.json") as f:
                     pageObj = json.loads(f.read())
                     ayat = pageObj['root']
-                    for aya in ayat:
+                    for pageIndex, aya in enumerate(ayat):
                         ayaText = aya['text']
                         fine = ayaText.find(str(topHighlight)) != -1 or str(topHighlight).find(ayaText) != -1
                         if(fine):
+                            aya['pageIndex'] = pageIndex # offset from the page zero indexed
+                            aya['pageRatio'] = pageIndex / len(ayat) # location ratio
                             fragments.append(aya)
                 locations.append(fragments)
+                hits.append(hit)
 
-            return results, locations
+            return hits, locations
 
     def _newParser(self):
         return qparser.QueryParser("ayat", self.ix.schema, group=self.groupOperator)

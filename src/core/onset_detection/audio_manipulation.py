@@ -9,7 +9,7 @@ def detectAudioChanges(audio, window_size, shift_value, max_diff_thre=6, functio
 
         returns: generator of (position of cut in millis, boolean whether it increasing or decreasing change)
     '''
-    return globals()[f"detectAudioChanges_{algo}"](audio, window_size, shift_value, max_diff_thre=6, function=function)
+    return globals()[f"detectAudioChanges_{algo}"](audio, window_size, shift_value, max_diff_thre=max_diff_thre, function=function)
 
 
 

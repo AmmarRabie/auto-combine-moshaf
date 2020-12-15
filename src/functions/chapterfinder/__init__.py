@@ -1,0 +1,1 @@
+from .finder import Finder as ChapterFinder

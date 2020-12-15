@@ -3,10 +3,10 @@ import os
 
 from pydub import AudioSegment
 
-from .audio_manipulation import detectAudioChanges
+from core.onset_detection import detectAudioChanges
 
 from helpers.utils import *
-from helpers.ticktock import tick, tock # TODO: remove this line after testing
+# # from helpers.ticktock import tick, tock # TODO: remove this line after testing
 
 # logging.basicConfig(level=logging.INFO)
 
@@ -62,15 +62,15 @@ class SalahSplitter:
         return audio
 
     def groupSoundRanges(self, audio, ranges):
-        tick("[groupSoundRanges]: getting all ranges")
+        # tick("[groupSoundRanges]: getting all ranges")
         ranges = list(ranges)
         print("ranges:", ranges)
         if (len(ranges) == 0):
             ranges = [audio.dBFS, (0, len(audio))]   # TODO: this logic shouldn't be here
-        tock()
-        tick("calculating all dbfs of the ranges...")
+        # tock()
+        # tick("calculating all dbfs of the ranges...")
         alldbfs = [averageDbfs for averageDbfs, _ in ranges]
-        tock()
+        # tock()
         ranges = [soundRange for _, soundRange in ranges]
         largest = max(alldbfs)
         # ranges = zip(alldbfs, ranges)
@@ -79,7 +79,7 @@ class SalahSplitter:
         print("Groups =", groups)
         return groups
 
-    def split(self, audio, countFrom = 1, grouping="no"):
+    def split(self, audio, countFrom = 1, grouping="no", returnAudio=True):
         '''
             :param grouping: "no" for no grouping, "all" for returning all groups or int > 0 representing the max number of groups
         '''
@@ -89,7 +89,7 @@ class SalahSplitter:
                 sound = audio[soundrange[0]:soundrange[1]]
                 length = len(audio)
                 yield {
-                    "audio": sound,
+                    "audio": sound if returnAudio else None,
                     "snum": soundNumber,
                     "scp": self._getActualCut(length, soundrange[0]),
                     "ecp": self._getActualCut(length, soundrange[1]),
