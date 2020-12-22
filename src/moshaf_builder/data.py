@@ -13,13 +13,14 @@ class AudioFile:
         self.path = path
         self.segments = segments or []
         self.pendingChapters = [] # chapters that doesn't added to any segment yet
+        self.processed = False
 
     def addSegment(self, segment):
         '''Add one segment with backref'''
         if(not isinstance(segment, Segment)):
             raise ValueError("Segment.addSegment: segment should be Segment instance")
         segment.sourceFile = self
-        self.segments.append(Segment)
+        self.segments.append(segment)
     
     def addSegments(self, segments):
         for s in segments: self.addSegment(s)
@@ -40,6 +41,27 @@ class AudioFile:
 
     def __hash__(self):
         return hash(self.path)
+    
+    def __serialize__(self):
+        return {
+            "path": self.path,
+            "segments": self.segments,
+            "pending_chapters": self.pendingChapters,
+            "processed": self.processed,
+        }
+
+    @classmethod
+    def from_dict(cls, d):
+        path, segments, pendingChapters = d['path'], d['segments'], d['pending_chapters']
+        audioFile = cls(path)
+        for seg in segments:
+            seg = Segment.from_dict(seg)
+            audioFile.addSegment(seg)
+        for pendingChapter in pendingChapters:
+            pc = ChapterLocation.from_dict(pendingChapter)
+            audioFile.pendingChapters.append(pc)
+        audioFile.processed = d.get('processed', False)
+        return audioFile
 
 
 class Segment:
@@ -52,6 +74,8 @@ class Segment:
         self.start = start
         self.end = end
         self.chapterLocations = chapterLocations or []
+        self.processed = False
+        
     def addChapter(self, chapter):
         '''Add one chapter with backref'''
         if(not isinstance(chapter, ChapterLocation)):
@@ -65,6 +89,26 @@ class Segment:
     def __repr__(self):
         return f"{self.name}: from {self.start} to {self.end} ({len(self.chapterLocations)} chapters)"
 
+    def __serialize__(self):
+        return {
+            "name": self.name,
+            "start": self.start,
+            "end": self.end,
+            "chapters": self.chapterLocations,
+            "processed": self.processed,
+        }
+
+    @classmethod
+    def from_dict(cls, d):
+        name, start, end, chapters = d['name'], d['start'], d['end'], d['chapters']
+        segment = cls(name, start, end)
+        for chapter in chapters:
+            chapter = ChapterLocation.from_dict(chapter)
+            segment.addChapter(chapter)
+        segment.processed = d.get('processed', False)
+        return segment
+
+
 class ChapterLocation:
     def __init__(self, chapter, globalStart, sourceSegment=None):
         super().__init__()
@@ -73,10 +117,24 @@ class ChapterLocation:
         self.chapter = chapter
         self.sourceSegment = sourceSegment
         self.globalStart = globalStart
+        self.processed = False
 
     def __repr__(self):
         return f"{self.chapter} starting at {self.globalStart}"
 
+    def __serialize__(self):
+        return {
+            "chapter": self.chapter,
+            "globalStart": self.globalStart,
+            "processed": self.processed
+        }
+
+    @classmethod
+    def from_dict(cls, d):
+        chapter, globalStart = d['chapter'], d['globalStart']
+        chapter = cls(chapter, globalStart)
+        chapter.processed = d.get('processed', False)
+        return chapter
 
 '''
 Project

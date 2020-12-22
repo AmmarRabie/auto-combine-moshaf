@@ -1,5 +1,7 @@
 import os
 from glob import glob
+from multiprocessing import Pool
+import json
 
 from functions.splitter import SalahSplitter
 from functions.chapterfinder import ChapterFinder
@@ -51,7 +53,7 @@ class MoshafBuilder():
         self.files[fileIndex].segments.clear()
 
     def clearSegmentChapters(self, fileIndex, segmentIndex):
-        self.files[fileIndex].segments[segmentIndex].chapters.clear()
+        self.files[fileIndex].segments[segmentIndex].chapterLocations.clear()
 
     def getFiles(self):
         '''return files in this project. list of AudioFile'''
@@ -65,7 +67,7 @@ class MoshafBuilder():
     def getChapters(self):
         '''return chapters in each segment of each file
         returns list of list of chapters. first index indicates segment in inflated count, second index indicates chapter'''
-        return [s.chapters for f in self.files for s in f.segments]
+        return [s.chapterLocations for f in self.files for s in f.segments]
 
     def compile(self, segments=True, chapters=True, checkDuplicates=True):
         '''
@@ -87,11 +89,29 @@ class MoshafBuilder():
                     seg = Segment(label['snum'], scp, ecp)
                     audioFile.addSegment(seg)
         if(chapters):
-            targets = (s for audioFile in self.files for s in audioFile.segments if(len(s.chapterLocations) > 0))
+            agents = 4 # my number of cores, TODO: make it number of logical cores
+            chunksize = 3
+            targets = [s for audioFile in self.files for s in audioFile.segments if(len(s.chapterLocations) == 0)]
+            # with Pool(processes=agents) as pool:
+            #     r = pool.map(self._action, targets, chunksize)
             for seg in targets:
-                for chapterIndex, chapterLocation in self.finder.find(seg.sourceFile.path, seg.start, seg.end):
+                p, s, e = seg.sourceFile.path, seg.start, seg.end
+                print(f"process finding file={p} from {s} to {e} (segment #{seg.name})")
+                if(seg.processed):
+                    print("ignoreing as it is processed before")
+                    continue
+                if(seg.name == 'watr'):
+                    print("ignoreing as it is not salah, it is the watr")
+                    continue
+                for chapterIndex, chapterLocation in self.finder.find(p, s, e):
                     c = ChapterLocation(chapterIndex, chapterLocation)
                     seg.addChapter(c)
+                seg.processed = True
+                self.save()
+    # def _action(self, seg):
+    #     for chapterIndex, chapterLocation in self.finder.find(seg.sourceFile.path, seg.start, seg.end):
+    #         c = ChapterLocation(chapterIndex, chapterLocation)
+    #         seg.addChapter(c)
 
     def build(self):
         '''
@@ -129,7 +149,25 @@ class MoshafBuilder():
         return self.moshaf
     
     def save(self):
-        pass
+        # TODO: support custom paths,...
+        projStr = json.dumps({
+            "project": {
+                "files": self.files,
+                "moshaf": self.moshaf,
+            }
+        }, default=dumper)
+        with open("tmp.mb", 'w') as f:
+            f.write(projStr)
+
+    def load(self):
+        p = "tmp.mb"
+        with open(p) as f:
+            projDict = json.loads(f.read())['project']
+        filesDict = projDict['files']
+        moshafArr = projDict['moshaf']
+        for fileDict in filesDict:
+            self.files.append(AudioFile.from_dict(fileDict))
+        self.moshaf = moshafArr
 
     def _walk(self, path, extSupported, returnList=False):
         resGenerator = (os.path.join(root, filename) for root, subdirs, files in os.walk(path) 
@@ -158,3 +196,8 @@ class MoshafBuilder():
     
     def _removeDuplicates(self):
         return list(dict.fromkeys(self.files))
+
+def dumper(obj):
+    if hasattr(obj, "__serialize__"):
+        return obj.__serialize__()
+    return obj.__dict__
