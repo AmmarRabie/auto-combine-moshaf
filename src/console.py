@@ -23,7 +23,7 @@ menu = [
         'type': 'list',
         'name': 'high_action',
         'message': 'What do you want to do ?',
-        'choices': ['show', 'add', 'update', 'clear', 'compile', 'build', 'exit']
+        'choices': ['show', 'add', 'update', 'clear', 'compile', 'build', 'load', 'save', 'exit']
     },
     # second menu scenarios
     {
@@ -134,10 +134,6 @@ menu = [
     },
 ]
 
-# answers = prompt(menu, style=myStyle)
-# pprint(answers)
-
-
 class Console:
     def __init__(self):
         super().__init__()
@@ -198,7 +194,7 @@ class Console:
                 pprint(seg)
             elif(command['show_action'] == 'chapter'):
                 fileIndex, segIndex, chapterIndex = self.askChapter()
-                chapter = self.app.getFiles()[fileIndex].segments[segIndex].chapters[chapterIndex]
+                chapter = self.app.getFiles()[fileIndex].segments[segIndex].chapterLocations[chapterIndex]
                 pprint(chapter)
     
         elif(highAction == 'add'):
@@ -209,6 +205,13 @@ class Console:
 
         elif(highAction == 'update'):
             pass
+        
+        elif(highAction == 'save'):
+            self.app.save()
+            print("saved")
+        
+        elif(highAction == 'load'):
+            self.app.load()
         return True
 
     def askFile(self, message="choose the file"):
@@ -216,7 +219,7 @@ class Console:
         choices = map(lambda index, audioFile: {
             "name": repr(audioFile), # audioFile.path,
             "value": index
-        }, range(0, len(files), files))
+        }, range(len(files)), files)
         q = {
             "type": 'list',
             "name": 'file',
@@ -232,7 +235,7 @@ class Console:
         choices = map(lambda index, seg: {
             "name": repr(seg),
             "value": index
-        }, range(0, len(segments), segments))
+        }, range(len(segments)), segments)
         q = {
             "type": 'list',
             "name": 'segment',
@@ -244,11 +247,11 @@ class Console:
     def askChapter(self, fileIndex=None, segIndex=None, message="choose the chapter"):
         if(not segIndex):
             fileIndex, segIndex = self.askSegment()
-        chapters = self.app.getFiles()[fileIndex].segments[segIndex].chapters
+        chapters = self.app.getFiles()[fileIndex].segments[segIndex].chapterLocations
         choices = map(lambda index, chapter: {
             "name": repr(chapter),
             "value": index
-        }, range(0, len(chapters), chapters))
+        }, range(len(chapters)), chapters)
         q = {
             "type": 'list',
             "name": 'chapter',
@@ -296,6 +299,7 @@ class Console:
             "choices": choices
         }
         return prompt(q, style=myStyle)['ans']
+    
     def loop(self):
         stop = False
         while(not stop):
