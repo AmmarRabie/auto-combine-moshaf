@@ -2,6 +2,8 @@ import os
 from glob import glob
 from multiprocessing import Pool
 import json
+from datetime import datetime
+from itertools import groupby
 
 from functions.splitter import SalahSplitter
 from functions.chapterfinder import ChapterFinder
@@ -103,9 +105,16 @@ class MoshafBuilder():
                 if(seg.name == 'watr'):
                     print("ignoreing as it is not salah, it is the watr")
                     continue
-                for chapterIndex, chapterLocation in self.finder.find(p, s, e):
-                    c = ChapterLocation(chapterIndex, chapterLocation)
+                print("start at", datetime.now().time())
+                chaptersResults = self.finder.find(p, s, e)
+                if(chaptersResults == None):
+                    print("unexpected error, can't process this segment")
+                    continue
+                for info in chaptersResults:
+                    aya = info['best_aya']
+                    c = ChapterLocation(aya["sura"], info["expected_start"], info["expected_end"], extras=info)
                     seg.addChapter(c)
+                print("end at", datetime.now().time())
                 seg.processed = True
                 self.save()
     # def _action(self, seg):
@@ -121,33 +130,55 @@ class MoshafBuilder():
         # __c_c_   __s2__   __c___   __s4__   __s5__
         # __s1__   __s2__   __s3__   __s4__   __s5__ 
         self.moshaf = []
-        allChapters = [c for c in chapters for chapters in self.getChapters()]
-        for i in range(1, len(allChapters)):
-            c2 = allChapters[i]
-            c1 = allChapters[i - 1]
-            f1, f2 = c1.sourceSegment.sourceFile, c2.sourceSegment.sourceFile
-            if f1 == f2:
-                parts = [{
-                    "sourceFile": f1.path,
-                    "globalStart": c1.globalStart,
-                    "globalEnd": c2.globalStart,
-                }]
-            else:
-                parts = [{
-                    "sourceFile": f1.path,
-                    "globalStart": c1.globalStart,
-                    "globalEnd": f1.duration,
-                },{
-                    "sourceFile": f2.path,
-                    "globalStart": 0,
-                    "globalEnd": c2.globalEnd,
-                }]
+        allChapters = [c for chapters in self.getChapters() for c in chapters]
+        chapter_key = lambda chapter: chapter.chapter
+        allChapters.sort(key=chapter_key)
+        groups = groupby(allChapters, key=chapter_key)
+        for chapter, chapterParts in groups:
+            chapterParts = list(chapterParts)
+            chapterParts.sort(key= lambda chapter: chapter.extras["best_aya"]["index"])
+            print(f"Chapter #{chapter}")
+            parts = []
+            for p in chapterParts:
+                parts.append({
+                    "sourceFile": p.sourceSegment.sourceFile.path,
+                    "start": p.globalStart,
+                    "end": p.globalEnd
+                })
             self.moshaf.append({
-                "chapter": c1.chapter,
-                "parts": parts,
+                "chapter": chapter,
+                "parts": parts
             })
-        return self.moshaf
-    
+        return
+
+        def buildAssumeSort():
+            for i in range(1, len(allChapters)):
+                c2 = allChapters[i]
+                c1 = allChapters[i - 1]
+                f1, f2 = c1.sourceSegment.sourceFile, c2.sourceSegment.sourceFile
+                if f1 == f2:
+                    parts = [{
+                        "sourceFile": f1.path,
+                        "globalStart": c1.globalStart,
+                        "globalEnd": c2.globalStart,
+                    }]
+                else:
+                    parts = [{
+                        "sourceFile": f1.path,
+                        "globalStart": c1.globalStart,
+                        "globalEnd": f1.duration,
+                    },{
+                        "sourceFile": f2.path,
+                        "globalStart": 0,
+                        "globalEnd": c2.globalEnd,
+                    }]
+                self.moshaf.append({
+                    "chapter": c1.chapter,
+                    "parts": parts,
+                })
+            return self.moshaf
+        return buildAssumeSort()
+
     def save(self):
         # TODO: support custom paths,...
         projStr = json.dumps({
@@ -169,6 +200,17 @@ class MoshafBuilder():
             self.files.append(AudioFile.from_dict(fileDict))
         self.moshaf = moshafArr
 
+    def exportMoshaf(self, rootPath):
+        if(len(self.moshaf) == 0):
+            return print("Build first before export")
+        Writer.moshafAudio(self.moshaf, rootPath)
+        pass
+
+    def _commonPath(self):
+        '''
+        return common path of all source files ("C:\\Data\\alquran kamel\\")
+        '''
+        pass
     def _walk(self, path, extSupported, returnList=False):
         resGenerator = (os.path.join(root, filename) for root, subdirs, files in os.walk(path) 
             for filename in files if (filename.split(".")[-1].lower() in extSupported))

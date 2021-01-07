@@ -1,5 +1,5 @@
-
-
+from pydub import AudioSegment
+import pathlib
 class Writer:
     def __init__(self):
         super().__init__()
@@ -30,6 +30,19 @@ class Writer:
         raise NotImplementedError()
 
     @staticmethod
-    def moshafAudio(moshaf):
-        raise NotImplementedError()
-
+    def moshafAudio(moshaf, rootPath):
+        for chapterInfo in moshaf:
+            chapter = chapterInfo['chapter']
+            parts = chapterInfo['parts']
+            print(f"exporting {chapter} with {len(parts)} parts")
+            p = parts[0]
+            path, start, end = p["sourceFile"], p["start"], p["end"]
+            start, end = int(start * 1000), int(end * 1000)
+            chapterAudio = AudioSegment.from_file(path)[start:end]
+            if(len(parts) > 1):
+                for p in parts[1:]:
+                    path, start, end = p["sourceFile"], p["start"], p["end"]
+                    start, end = int(start * 1000), int(end * 1000)
+                    chapterAudio += AudioSegment.from_file(path)[start:end]
+            exportPath = pathlib.Path(rootPath).joinpath(str(chapter) + ".mp3").resolve()
+            chapterAudio.export(exportPath, format="mp3")

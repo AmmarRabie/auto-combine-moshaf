@@ -23,7 +23,7 @@ menu = [
         'type': 'list',
         'name': 'high_action',
         'message': 'What do you want to do ?',
-        'choices': ['show', 'add', 'update', 'clear', 'compile', 'build', 'load', 'save', 'exit']
+        'choices': ['show', 'add', 'update', 'clear', 'compile', 'build', 'export', 'load', 'save', 'exit']
     },
     # second menu scenarios
     {
@@ -155,7 +155,9 @@ class Console:
                 self.app.compile(chapters=False)
             elif(command['compile_action'] == 'chapters'):
                 self.app.compile(segments=False)
-        
+        elif(highAction == 'export'):
+            path = self.chooseFolderNavigator()
+            self.app.exportMoshaf(path.resolve())
         elif(highAction == 'clear'):
             if(command['clear_action'] == 'all'):
                 self.app.clear()

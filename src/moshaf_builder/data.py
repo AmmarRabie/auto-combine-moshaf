@@ -110,14 +110,16 @@ class Segment:
 
 
 class ChapterLocation:
-    def __init__(self, chapter, globalStart, sourceSegment=None):
+    def __init__(self, chapter, globalStart, globalEnd, sourceSegment=None, extras={}):
         super().__init__()
         if(sourceSegment != None and not isinstance(sourceSegment, Segment)):
             raise ValueError("init of Segment: audioFile should be Segment instance or None")
         self.chapter = chapter
         self.sourceSegment = sourceSegment
         self.globalStart = globalStart
+        self.globalEnd = globalEnd
         self.processed = False
+        self.extras = extras
 
     def __repr__(self):
         return f"{self.chapter} starting at {self.globalStart}"
@@ -126,14 +128,17 @@ class ChapterLocation:
         return {
             "chapter": self.chapter,
             "globalStart": self.globalStart,
-            "processed": self.processed
+            "globalEnd": self.globalEnd,
+            "processed": self.processed,
+            "extras": self.extras
         }
 
     @classmethod
     def from_dict(cls, d):
-        chapter, globalStart = d['chapter'], d['globalStart']
-        chapter = cls(chapter, globalStart)
+        chapter, globalStart, globalEnd = d['chapter'], d['globalStart'], d['globalEnd']
+        chapter = cls(chapter, globalStart, globalEnd)
         chapter.processed = d.get('processed', False)
+        chapter.extras = d.get('extras', {})
         return chapter
 
 '''

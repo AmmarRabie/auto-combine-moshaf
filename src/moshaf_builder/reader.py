@@ -23,7 +23,7 @@ class Reader:
         with open(path) as f:
             chapters = f.read().splitlines(False)
         for chapter in chapters:
-            chapter, globalStart = chapter.split('\t')
-            s = ChapterLocation(chapter, globalStart)
+            chapter, globalStart, globalEnd = chapter.split('\t')
+            s = ChapterLocation(chapter, globalStart, globalEnd)
             res.append(s)
         return res
