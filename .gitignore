@@ -3,12 +3,34 @@ output/
 logs/
 data/
 checkpoints/
+
+# python
 *.pyc
+
+# vscode
 .vscode/
+
+# test audio files
 *.wav
 *.mp3
 *.m4a
+
+# audacity projects
 *.au
 *.aup
+
+# logs
 *.log
+
+# my application extensions
 *.extignore
+*.qm
+*.mb
+
+
+# test code and trials
+trials/
+docs/
+
+# large files
+assets/quran-simple-clean.txt
