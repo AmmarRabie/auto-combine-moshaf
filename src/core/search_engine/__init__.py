@@ -1,1 +1,1 @@
-from .engine import SearchEngine
+from .engine import TwoStagesSearchEngine as SearchEngine
