@@ -1,1 +1,1 @@
-from .asr import ASR
+from .online import OnlineASR as ASR # alias default ASR to OnlineASR class
