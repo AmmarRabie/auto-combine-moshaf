@@ -14,7 +14,7 @@ class QuranXmlReader():
     '''
     class that can return ayat connected to each other from any aya in any sura to another one
     '''
-    def __init__(self, xmlPath="C:/Data/workspace/qur2an salah splitter/src/functions/chapterfinder/quran-simple-clean.xml"):
+    def __init__(self, xmlPath="../assets/quran-simple-clean.xml"):
         super().__init__()
         tree = ET.parse(xmlPath)
         self.root = tree.getroot()
@@ -46,7 +46,7 @@ class TwoStagesSearchEngine(EngineInterface):
         self.groupOperator = qparser.OrGroup.factory(0.2)
         self.SEARCH_ENGINE_ALGO = False
         self.quranReader = QuranXmlReader()
-        self.quranMetaDataPath = "C:/Data/workspace/qur2an salah splitter/src/functions/chapterfinder/quran-metadata.xml"
+        self.quranMetaDataPath = "../assets/quran-metadata.xml"
         # self.groupOperator = qparser.OrGroup
 
 
@@ -85,7 +85,7 @@ class TwoStagesSearchEngine(EngineInterface):
 
     def loadOrBuild(self, indexDir):
         if(index.exists_in(indexDir)): self.loadIndexer(indexDir)
-        else: self.buildIndexer(QuranXmlReader(), indexDataDir=indexDir)
+        else: self.buildIndexer(indexDataDir=indexDir)
 
     def search(self, text, limit=None):
         '''
@@ -127,7 +127,7 @@ class TwoStagesSearchEngine(EngineInterface):
         return func(*params)
 
     def _getBestAyaMatch_seqMatcher(self, pageNum, topHighlight):
-        with open(f"C:/Data/workspace/qur2an salah splitter/src/core/search_engine/quran_pages/{pageNum}.json") as f:
+        with open(f"../assets/quran_pages/{pageNum}.json") as f:
             pageObj = json.loads(f.read())
             ayat = pageObj['root']
         bestAya = None
@@ -157,15 +157,14 @@ class TwoStagesSearchEngine(EngineInterface):
         '''
         find aya on specific page using search techniques
         '''
-        print(pageNum, topHighlight)
         pageIndex = self._loadPageIndexer(pageNum)
         parser = self._newPageIndexParser(pageIndex)
         q = parser.parse(topHighlight)
         with pageIndex.searcher(weighting=scoring.BM25F()) as searcher:
             results = searcher.search(q, limit=1)
-            hit = next(results)
+            hit = results[0]
             return {
-                "sura": hit["sura"],
+                "sura": hit["suraIndex"],
                 "index": hit["ayaIndex"],
                 "text": hit["ayaText"],
                 "aya_score": hit.score,
@@ -179,16 +178,16 @@ class TwoStagesSearchEngine(EngineInterface):
         '''
         load specific page indexer
         '''
-        indexDataDir = f"C:/Data/workspace/qur2an salah splitter/src/functions/chapterfinder/quran_pages_indexers/{pageNum}"
+        indexDataDir = f"../assets/quran_pages_indexers/{pageNum}"
         return index.open_dir(indexDataDir)
 
     def _newPageIndexParser(self, pageIndexer):
-        return qparser.QueryParser("ayaText", pageIndexer, group=self.groupOperator)
+        return qparser.QueryParser("ayaText", pageIndexer.schema, group=self.groupOperator)
 
 
 if __name__ == "__main__":
     indexer = TwoStagesSearchEngine()
-    indexer.loadIndexer("C:\Data\workspace\qur2an salah splitter\src\core\search_engine\index_allstored")
+    indexer.loadIndexer("./index_allstored")
     # indexer.buildIndexer(QuranXmlReader(), indexDataDir="index_allstored")
     tests = [
         # quran approximated
