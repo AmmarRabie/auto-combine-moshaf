@@ -10,6 +10,14 @@ def timeRepr(*millis, joint=", "):
     # return res
     return joint.join(res)
 
+def average(iterable):
+    s = 0
+    l = 0
+    for x in iterable:
+        s += x
+        l += 1
+    return s / l # TODO: raises exception if length is 0
+
 import wave
 import pydub
 
