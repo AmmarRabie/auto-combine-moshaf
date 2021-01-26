@@ -1,11 +1,10 @@
-def timeRepr(*millis, joint=", "):
+def timeRepr(*seconds, joint=", "):
     res = []
-    for p in millis:
-        seconds = p / 1000
-        mins = seconds // 60
-        remainSeconds = seconds - mins * 60
+    for p in seconds:
+        mins = p // 60
+        remainSeconds = p - mins * 60
         res.append(f"{mins}:{remainSeconds}")
-    if(len(millis) == 1):
+    if(len(seconds) == 1):
         return res[0]
     # return res
     return joint.join(res)
@@ -17,6 +16,25 @@ def average(iterable):
         s += x
         l += 1
     return s / l # TODO: raises exception if length is 0
+
+def groupclosest(valuesList, tolerance=8):
+    #? 1. We may make this function by clustering points using machine learning kmeans algo
+    #? 2. We want to use variance of every group, the variance give info about the rate of speaking ==> sound should have high variance
+    groups = []
+    valuesList = sorted(valuesList)[::-1]
+    basei = 0
+    for i, val in enumerate(valuesList):
+        if (abs(val[0] - valuesList[basei][0]) > tolerance):
+            newGroup = valuesList[basei:i]
+            newGroup = sorted(newGroup, key=lambda x: x[1]) # sort over the group over item itself
+            # print("newGroup", newGroup)
+            # groups.append(valuesList[basei:i])
+            groups.append(newGroup)
+            basei = i
+    lastGroup = valuesList[basei:len(valuesList)]
+    lastGroup = sorted(lastGroup, key=lambda x: x[1])
+    groups.append(lastGroup)
+    return groups
 
 import wave
 import pydub
