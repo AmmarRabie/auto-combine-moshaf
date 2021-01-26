@@ -17,7 +17,6 @@ class IDetectorData(object):
         'max value ever for detectionValue'
         raise NotImplementedError(f"{self.__class__.__name__} class should implement maxValue method")
 
-    @property
     def percentage(self, value):
         'percentage of value scaled to minValue to maxValue'
         raise NotImplementedError(f"{self.__class__.__name__} class should implement percentage method")
@@ -35,5 +34,5 @@ class IAudioChangeDetector(object):
     def __init__(self, window_size, shift_value, max_diff_thre=15, function='dBFS'):
         raise NotImplementedError(f"Can't construct interface IAudioDetector")
 
-    def detect_minmax(self, audio: IDetectorData, plot=False):
+    def detect_minmax(self, audio: IDetectorData, start=None, end=None, plot=False):
         raise NotImplementedError(f"{self.__class__.__name__} class should implement detect_minmax method")
