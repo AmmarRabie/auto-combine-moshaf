@@ -13,14 +13,18 @@ class AudioChangeDetector(IAudioChangeDetector):
         if(self.function != "dBFS"): 
             raise TypeError(f"AudioChangeDetector supports dbFS as a function only for now. found {function}")
 
-    def detect_minmax(self, audio: IDetectorData, plot=False):
-        offset = 0
+    def detect_minmax(self, audio: IDetectorData, start=None, end=None, plot=False):
+        offset = start or 0
+        end = end or audio.duration
+        # validate parameters
+        if(offset < 0 or offset > audio.duration or end < 0 or end > audio.duration):
+            raise ValueError(f"start and end should be in range 0 to {audio.duration}, found {start}, {end}")
         currentMin = float("infinity")
         currentMax = -float("infinity")
-        pltData = {'time': [],'perc': [],'dval': [],'minv': [],'maxv': [], 'diff': []}
-        while(offset + self.window_size < audio.duration * 1000):
+        pltData = {'time': [], 'perc': [], 'dval': [], 'minv': [], 'maxv': [], 'diff': []}
+        while(offset + self.window_size < end):
             wind = offset, offset + self.window_size
-            detectionVal = audio.detectionValue(wind[0] / 1000, wind[1] / 1000)
+            detectionVal = audio.detectionValue(wind[0], wind[1])
             # print("> at time", timeRepr(offset))
             # print("\t\t detection value:", detectionVal)
             currentMin = min(currentMin, detectionVal)
@@ -58,10 +62,10 @@ def testDatFile(path):
     wind, shift = 0.5 * 60, 1
     wind, shift = 15, 5
     wind, shift = 0.5 * 60, 0.5 * 60 * 0.5
-    detector = AudioChangeDetector(wind * 1000, shift * 1000)
+    detector = AudioChangeDetector(wind, shift)
     audio = WaveformData(path)
     audioDetectorAdapter = AudioWaveformAdapter(audio)
-    gen = detector.detect_minmax(audioDetectorAdapter, plot=True)
+    gen = detector.detect_minmax(audioDetectorAdapter, plot=False)
     return gen
 
 def testWavFile(path):
@@ -70,10 +74,10 @@ def testWavFile(path):
     wind, shift = 0.5 * 60, 1
     wind, shift = 15, 5
     wind, shift = 0.5 * 60, 0.5 * 60 * 0.5
-    detector = AudioChangeDetector(wind * 1000, shift * 1000)
+    detector = AudioChangeDetector(wind, shift)
     audio = AudioSegment.from_file(path)
     audioDetectorAdapter = AudioSegmentAdapter(audio)
-    gen = detector.detect_minmax(audioDetectorAdapter, plot=True)
+    gen = detector.detect_minmax(audioDetectorAdapter, plot=False)
     return gen
     
 
@@ -102,7 +106,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     sns.set_theme(style="ticks")
 
-    testFile = "C:\\Data\\workspace\\qur2an salah splitter\\audio_tests\\ex2.wav"
+    testFile = "C:\\Data\\workspace\\qur2an salah splitter\\audio_tests\\ex1.wav"
     print("Start dat file testing")
     res = testDatFile(testFile.replace(".wav", ".dat"))
     displayResult(res, "dat")
