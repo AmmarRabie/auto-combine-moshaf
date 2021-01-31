@@ -76,9 +76,9 @@ class Splitter(ISplitter):
         changePoints = list(changePoints)  # TODO: how to make it online ?
 
         # transform change points locations into usefull ranges
+        self._correctStartEndProblem(audioDetectorData, changePoints)
         ranges = self.calcRanges(audioDetectorData, changePoints)
-        logging.info(f"ranges:")
-        print(ranges)
+        logging.info("ranges: %a", ranges)
 
         # filtering (runs on ranges)
         if not self.bypassFiltering:
@@ -91,11 +91,10 @@ class Splitter(ISplitter):
                     audioDetectorData,
                 ],
             )
-        logging.info(f"ranges after filtering:")
-        print(ranges)
+        logging.info("ranges after filtering: %a", ranges)
 
         # adjusting (should not add any new range or remove)
-        if not self.bypassFiltering:
+        if not self.bypassAdjusting:
             # ? should we instead use another value, to cache original suggestion
             ranges = self.adjust(audioDetectorData, ranges)
         if self.useAdjusting:
@@ -106,8 +105,7 @@ class Splitter(ISplitter):
                     audioDetectorData,
                 ],
             )
-        logging.info(f"ranges after adjusting:")
-        print(ranges)
+        logging.info("ranges after adjusting: %a", ranges)
 
         # grouping
         ## some sort of validation checking
@@ -129,6 +127,7 @@ class Splitter(ISplitter):
             )
         elif not self.bypassGrouping:
             groups = self.group(audioDetectorData, ranges)
+        logging.info("groups: %a", groups)
 
         # post filtering (runs on groups)
         if not self.bypassPostFiltering:
@@ -141,6 +140,7 @@ class Splitter(ISplitter):
                     audioDetectorData,
                 ],
             )
+        logging.info("groups after filtering: %a", groups)
 
         return groups
 
@@ -149,7 +149,6 @@ class Splitter(ISplitter):
             logging.info(f"number of changes = 0")
             logging.info("seems that you have no sound in this audio")
             return []
-        self._correctStartEndProblem(audioDetectorData, changePoints)
         return tuple(
             (lastPos[0], pos[0])
             for lastPos, pos in zip(changePoints, changePoints[1:])
@@ -189,17 +188,26 @@ class Splitter(ISplitter):
 
     def adjust(self, audioDetectorData, ranges):
         adjustedRanges = []
-        for i, currentRange in enumerate(ranges):
-            start, end = currentRange
+        for i, originalRange in enumerate(ranges):
+            start, end = originalRange
             start = max(0, start - self.fd_lookOutbound)
             end = min(audioDetectorData.duration, end + self.fd_lookOutbound)
             changePoints = self.fineDetector.detect_minmax(
                 audioDetectorData, start=start, end=end
             )
             changePoints = list(changePoints)  # TODO: how to make it online ?
-            print(f"new change points from {currentRange[0]} to {currentRange[1]}")
-            print(changePoints)
-            self._correctStartEndProblem(audioDetectorData, changePoints)
+            logging.info(
+                "new change points from %s to %s are: %a",
+                timeRepr(originalRange[0]),
+                timeRepr(originalRange[1]),
+                changePoints,
+            )
+            self._correctStartEndProblem(
+                audioDetectorData,
+                changePoints,
+                start=originalRange[0],
+                end=originalRange[1],
+            )
             newRanges = self.calcRanges(audioDetectorData, changePoints)
             if len(newRanges) == 1:
                 newStart, newEnd = newRanges[0]
@@ -207,19 +215,40 @@ class Splitter(ISplitter):
                     f"adjusting range [{timeRepr(start)}__{timeRepr(end)}] to be [{timeRepr(newStart)}__{timeRepr(newEnd)}]"
                 )
                 adjustedRanges.append(newRanges[0])
+            elif len(newRanges) > 1:
+                logging.warning(
+                    f"adjusting range from {timeRepr(start)} to {timeRepr(end)} doesn't return one range, find {len(newRanges)} new ranges"
+                )
+                # ? we have a lot of ranges, is there is any thing smart here we can do
+                # we may select highest percentage after removing all short durations
+                # TODO: this code is under revision
+                # //newRanges = self.filter(audioDetectorData, newRanges)
+                # //groups = self.group(audioDetectorData, newRanges)
+                # //bestRange = max(groups[0]) # best range in the first group (first group is best group always)
+                # //adjustedRanges.append(bestRange)
+                # TODO: this code is under revision
+                # this code get the min start/end ever over all ranges and make it the adjusted range
+                s, e = audioDetectorData.duration, 0
+                for r in newRanges:
+                    currentS, currentE = r
+                    s = min(s, currentS)
+                    e = max(e, currentE)
+                adjustedRanges.append((s, e))
+
+                # TODO: remove this when you make the smart things above :)
+                # adjustedRanges.append(originalRange)
             else:
                 logging.warning(
                     f"adjusting range from {timeRepr(start)} to {timeRepr(end)} doesn't return one range, find {len(newRanges)} new ranges, return range before adjusting"
                 )
-                adjustedRanges.append(currentRange)
+                adjustedRanges.append(originalRange)
         return adjustedRanges
 
     def group(self, audioDetectorData, ranges):
         percentages = [
-            audioDetectorData.percentage(audioDetectorData.detectionValue(s, e))
+            audioDetectorData.percentage(abs(audioDetectorData.detectionValue(s, e)))
             for s, e in ranges
         ]
-        print(percentages)
         rangesWithPerc = [
             (percentage, rng) for percentage, rng in zip(percentages, ranges)
         ]
@@ -228,10 +257,10 @@ class Splitter(ISplitter):
 
     def postFiltering(self, audioDetectorData, ranges, groups):
         # filter low group percentages
-        print(groups)
         if not groups or len(groups) == 0:
             return groups  # nothing to do here
         groupAverages = tuple(sum(p for p, _ in g) / len(g) for g in groups)
+        print(groupAverages)
         maxAvg = max(groupAverages)
         groups = filter(
             lambda ix_grp: maxAvg - groupAverages[ix_grp[0]]
@@ -246,8 +275,11 @@ class Splitter(ISplitter):
             lastRes = f(*constants, lastRes)
         return lastRes
 
-    def _correctStartEndProblem(self, audio: IDetectorData, changePoints):
+    def _correctStartEndProblem(
+        self, audio: IDetectorData, changePoints, start=0, end=None
+    ):
         logging.info("try to correct if start with sound or end with sound probelm")
+        end = end or audio.duration
         count = len(changePoints)
         if count == 0:
             return  # nothing to do with empty list
@@ -255,12 +287,12 @@ class Splitter(ISplitter):
             logging.warning(
                 "oh, first cut position was decreasing, we will add an increasing in the beginning"
             )
-            changePoints.insert(0, (0, True))
+            changePoints.insert(0, (start, True))
         if changePoints[-1][1]:
             logging.warning(
                 "oh, last cut position was increasing, we will add a decreasing in the end"
             )
-            changePoints.append((audio.duration, False))
+            changePoints.append((end, False))
 
 
 # class IFilter(object):
@@ -279,10 +311,23 @@ class Splitter(ISplitter):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     print("main")
-    basicDetector = AudioChangeDetector(30, 15, 15)
-    fineDetector = AudioChangeDetector(2, 1, 30)
-    splitter = Splitter(basicDetector, fineDetector)
+    basicDetector = AudioChangeDetector(30, 15, 10)
+    fineDetector = AudioChangeDetector(5, 1, 5)
+    # fineDetector = basicDetector
+    splitter = Splitter(basicDetector, fineDetector, bypassAdjusting=False)
     groups = splitter.split(
-        "C:\\Data\\workspace\\qur2an salah splitter\\audio_tests\\ex1.dat"
+        # "C:\\Data\\workspace\\qur2an salah splitter\\audio_tests\\ex1.dat"
+        "C:\\Data\\workspace\\qur2an salah splitter\\audio_tests\\ZOOM0001.dat"
     )
     print(groups)
+    for i, g in enumerate(groups):
+        print(f"group #{i + 1}")
+        for rangeWithPerc in g:
+            p, r = rangeWithPerc
+            print(f"\t\t from {timeRepr(r[0])} to {timeRepr(r[1])} ==> perc: {p}")
+    # write in audacity form, load and test
+    with open("./labels.audacity.txt", 'wt') as writeFile:
+        for i, g in enumerate(groups):
+            for rangeWithPerc in g:
+                p, r = rangeWithPerc
+                writeFile.write(f"{r[0]}\t{r[1]}\tG{i + 1} P{int(p)}\n")

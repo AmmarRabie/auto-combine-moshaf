@@ -2,8 +2,10 @@ def timeRepr(*seconds, joint=", "):
     res = []
     for p in seconds:
         mins = p // 60
+        hours = mins // 60
         remainSeconds = p - mins * 60
-        res.append(f"{mins}:{remainSeconds}")
+        mins = mins - hours * 60
+        res.append(f"{hours}:{mins}:{remainSeconds}")
     if(len(seconds) == 1):
         return res[0]
     # return res
