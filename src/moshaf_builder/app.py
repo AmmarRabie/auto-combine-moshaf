@@ -15,13 +15,17 @@ from .data import AudioFile, Segment, ChapterLocation
 
 class MoshafBuilder():
 
-    def __init__(self):
+    def __init__(self, projectPath=None):
         super().__init__()
         self.audioExtSupported = ['wav',]
         self.files = []
         self.moshaf = []
         self.splitter = SalahSplitter()
         self.finder = ChapterFinder()
+        self.projectPath = projectPath
+        if(projectPath and os.path.exists(projectPath)):
+            logging.info(f"loading from {projectPath}")
+            self.load(p=projectPath)
 
     def addFile(self, file, inDirInfo=False):
         '''Add file to the project'''
@@ -190,19 +194,20 @@ class MoshafBuilder():
             return self.moshaf
         return buildAssumeSort()
 
-    def save(self):
-        # TODO: support custom paths,...
+    def save(self, path=None):
+        if(not path and not self.projectPath):
+            raise ValueError(f"temp state and no path is given, save can't figure where to save the file")
+        path = path or self.projectPath
         projStr = json.dumps({
             "project": {
                 "files": self.files,
                 "moshaf": self.moshaf,
             }
         }, default=dumper)
-        with open("tmp.mb", 'w') as f:
+        with open(path, 'w') as f:
             f.write(projStr)
 
-    def load(self):
-        p = "tmp.mb"
+    def load(self, p="tmp.mb"):
         with open(p, encoding="utf-8") as f:
             projDict = json.loads(f.read())['project']
         filesDict = projDict['files']
@@ -210,12 +215,16 @@ class MoshafBuilder():
         for fileDict in filesDict:
             self.files.append(AudioFile.from_dict(fileDict))
         self.moshaf = moshafArr
+        self.projectPath = p # switch to this project
 
     def exportMoshaf(self, rootPath):
         if(len(self.moshaf) == 0):
             return print("Build first before export")
         Writer.moshafAudio(self.moshaf, rootPath)
         pass
+
+    def isTempState(self):
+        return self.projectPath == None
 
     def _commonPath(self):
         '''

@@ -135,9 +135,9 @@ menu = [
 ]
 
 class Console:
-    def __init__(self):
+    def __init__(self, projectPath = None):
         super().__init__()
-        self.app = MoshafBuilder()
+        self.app = MoshafBuilder(projectPath)
 
     def getCommand(self):
         return prompt(menu, style=myStyle)
@@ -145,7 +145,15 @@ class Console:
     def execCommand(self, command):
         highAction = command['high_action']
         if(highAction == 'exit'):
-            return False
+            if(self.app.isTempState()):
+                # warn  the user
+                ans = prompt([{
+                    'type': 'confirm',
+                    'name': 'noSave',
+                    'message': 'exit without saving',
+                    'default': False
+                }])
+            return not ans["noSave"]
         if(highAction == 'build'):
             self.app.build()
         elif(highAction == 'compile'):
@@ -209,11 +217,18 @@ class Console:
             pass
         
         elif(highAction == 'save'):
-            self.app.save()
+            savePath = None
+            if(self.app.isTempState()):
+                savePath = self.chooseFolderNavigator(dirMark=f"save a new file here")
+                if(os.path.isdir(savePath)):
+                    saveName = input("filename:")
+                    savePath = os.path.join(savePath, saveName)
+            self.app.save(savePath)
             print("saved")
         
         elif(highAction == 'load'):
-            self.app.load()
+            loadPath = self.chooseFileNavigator()
+            self.app.load(loadPath)
         return True
 
     def askFile(self, message="choose the file"):
@@ -269,15 +284,15 @@ class Console:
             current = self._showPath(current)
         return current
 
-    def chooseFolderNavigator(self, startPath='./'):
+    def chooseFolderNavigator(self, startPath='./', dirMark="(select it to add the whole folder)"):
         startPath = Path(startPath).resolve()
         prevCurrent = startPath
-        current = self._showPath(startPath, showCurrentDir=True, currentDirMark="(select it to add the whole folder)")
+        current = self._showPath(startPath, showCurrentDir=True, currentDirMark=dirMark)
         if(isinstance(current, str) and current == "."):
             return prevCurrent
         while(current.is_dir() and current != "."):
             prevCurrent = current
-            current = self._showPath(current, showCurrentDir=True, currentDirMark="(select it to add the whole folder)")
+            current = self._showPath(current, showCurrentDir=True, currentDirMark=dirMark)
             if(isinstance(current, str) and current == "."):
                 current = prevCurrent
                 break
@@ -311,7 +326,9 @@ class Console:
 
 
 if __name__ == "__main__":
-    app = Console()
+    from sys import argv
+    projectPath = argv[1] if(len(argv) >= 2) else None
+    app = Console(projectPath)
     app.loop()
     # chosen = app.chooseFolderNavigator()
     # print(chosen)
