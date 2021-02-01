@@ -8,9 +8,10 @@ from pathlib import Path
 
 
 class AudioFile:
-    def __init__(self, path, segments=None):
+    def __init__(self, path, datPath=None, segments=None):
         super().__init__()
         self.path = path
+        self.datPath = datPath
         self.segments = segments or []
         self.pendingChapters = [] # chapters that doesn't added to any segment yet
         self.processed = False
@@ -32,6 +33,15 @@ class AudioFile:
     @property
     def duration(self):
         return audioInfo(self.path)["streaminfo"]["duration"]
+
+    @property
+    def availablePath(self):
+        '''returns dat path if exist, otherwise wav path'''
+        if(self.datPath): return self.datPath
+        ext = self.path.split(".")[-1]
+        datPath = self.path.replace("." + ext, ".dat")
+        if(Path(datPath).exists()): return datPath
+        return self.path
 
     def __repr__(self):
         return f"{self.path} ({len(self.segments)} segments)"

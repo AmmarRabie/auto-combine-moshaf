@@ -84,12 +84,14 @@ class MoshafBuilder():
         if(segments):
             for audioFile in self.files:
                 if(len(audioFile.segments) > 0): continue
-                audio = audioFile.loadAudio()
-                audio = self.splitter.prepareAudio(audio)
-                for label in self.splitter.split(audio, grouping=1, returnAudio=False):
-                    scp, ecp = label['scp'], label['ecp']
-                    seg = Segment(label['snum'], scp, ecp)
-                    audioFile.addSegment(seg)
+                audio = audioFile.availablePath # returns dat path if exist, otherwise wav path
+                audio = self.splitter.prepareAudio(audioFile.path)
+                for igroup, group in enumerate(self.splitter.split(audio)):
+                    for irange, rng in enumerate(group):
+                        scp, ecp = rng[1]
+                        label = f"G{igroup + 1}_{irange + 1}"
+                        seg = Segment(label, scp, ecp)
+                        audioFile.addSegment(seg)
         if(chapters):
             agents = 4 # my number of cores, TODO: make it number of logical cores
             chunksize = 3
@@ -192,7 +194,7 @@ class MoshafBuilder():
 
     def load(self):
         p = "tmp.mb"
-        with open(p) as f:
+        with open(p, encoding="utf-8") as f:
             projDict = json.loads(f.read())['project']
         filesDict = projDict['files']
         moshafArr = projDict['moshaf']
@@ -222,6 +224,7 @@ class MoshafBuilder():
         audioExt = audioFilePath.split('.')[-1]
         hypoSegmentFilePath = audioFilePath.replace(audioExt, 'segments')
         hypoChapterLocationsFilePath = audioFilePath.replace(audioExt, 'chapters')
+        hypoDatFilePath = audioFilePath.replace(audioExt, 'dat')
         segments = []
         if(os.path.exists(hypoSegmentFilePath)):
             segments = Reader.segments(hypoSegmentFilePath)
@@ -235,6 +238,8 @@ class MoshafBuilder():
                     audioFile.pendingChapters.append(chapter) # TODO: support this functionality
                 else:
                     targetSeg.addChapter(chapter)
+        if(os.path.exists(hypoDatFilePath)):
+            audioFile.datPath = hypoDatFilePath
     
     def _removeDuplicates(self):
         return list(dict.fromkeys(self.files))

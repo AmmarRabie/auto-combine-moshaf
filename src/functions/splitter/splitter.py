@@ -295,26 +295,33 @@ class Splitter(ISplitter):
             changePoints.append((end, False))
 
 
-# class IFilter(object):
-#     def __init__(self):
-#         super().__init__()
+class SalahSplitter():
+    '''Hides complexity of Splitter, customized for getting Salah recitations only'''
+    def __init__(self):
+        basicDetector = AudioChangeDetector(30, 15, 10)
+        fineDetector = AudioChangeDetector(5, 1, 5)
+        self.splitter = Splitter(basicDetector, fineDetector, bypassAdjusting=True)
 
-#     def filter(self, audioDetectorData, ranges):
-#         pass
+    def prepareAudio(self, source)-> IDetectorData:
+        return self.splitter.prepareAudio(source)
 
-# def createFilter(callback) -> Filter:
-#     newFilter = type(f'Filter_{callback.__name__}', (IFilter,), {
-#         "__init__": lambda: (), # empty init
-#         "filter": lambda self, audioDetectorData, ranges: callback(audioDetectorData, ranges)
-#     })
+    def split(self, source):
+        return self.splitter.split(source)
+
+    def filter(self, source):
+        # TODO: filter ranges that have no recitations (e.g dars)
+        raise NotImplementedError()
+
+    def adjust(self, source):
+        # TODO: shift fatha, start with the sura
+        raise NotImplementedError()
+
 
 if __name__ == "__main__":
+    from pathlib import Path
+
     logging.basicConfig(level=logging.INFO)
-    print("main")
-    basicDetector = AudioChangeDetector(30, 15, 10)
-    fineDetector = AudioChangeDetector(5, 1, 5)
-    # fineDetector = basicDetector
-    splitter = Splitter(basicDetector, fineDetector, bypassAdjusting=False)
+    splitter = SalahSplitter()
     groups = splitter.split(
         # "C:\\Data\\workspace\\qur2an salah splitter\\audio_tests\\ex1.dat"
         "C:\\Data\\workspace\\qur2an salah splitter\\audio_tests\\ZOOM0001.dat"
@@ -326,8 +333,9 @@ if __name__ == "__main__":
             p, r = rangeWithPerc
             print(f"\t\t from {timeRepr(r[0])} to {timeRepr(r[1])} ==> perc: {p}")
     # write in audacity form, load and test
-    with open("./labels.audacity.txt", 'wt') as writeFile:
+    with open("./labels.audacity.txt", "wt") as writeFile:
         for i, g in enumerate(groups):
             for rangeWithPerc in g:
                 p, r = rangeWithPerc
                 writeFile.write(f"{r[0]}\t{r[1]}\tG{i + 1} P{int(p)}\n")
+    print(f"written to {Path('./labels.audacity.txt').resolve()}")
