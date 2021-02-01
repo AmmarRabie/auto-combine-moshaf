@@ -1,5 +1,5 @@
 import os
-from glob import glob
+import logging
 from multiprocessing import Pool
 import json
 from datetime import datetime
@@ -7,6 +7,8 @@ from itertools import groupby
 
 from functions.splitter import SalahSplitter
 from functions.chapterfinder import ChapterFinder
+from helpers.commands import generateDatFile
+from helpers.utils import replaceExt
 from .writer import Writer
 from .reader import Reader
 from .data import AudioFile, Segment, ChapterLocation
@@ -26,9 +28,16 @@ class MoshafBuilder():
         if(not isinstance(file, AudioFile)):
             file = AudioFile(file)
             # raise ValueError("MoshafBuilder.addFile: file should be AudioFile")
-        self.files.append(file)
         if(inDirInfo):
             self._loadFileInfo(file)
+        if(not file.datPath):
+            # generate dat file and point to it
+            logging.info(f"generating dat file for {file.path} in same dir")
+            datPath = replaceExt(file.path, "dat")
+            generateDatFile(file.path, datPath)
+            logging.info(f"done generating (written)")
+            file.datPath = datPath
+        self.files.append(file)
 
     def addFolder(self, folderPath, inDirInfo=False):
         '''

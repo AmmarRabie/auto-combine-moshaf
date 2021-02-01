@@ -38,6 +38,14 @@ def groupclosest(valuesList, tolerance=8):
     groups.append(lastGroup)
     return groups
 
+def fileExt(path):
+    ext = path.split(".")[-1]
+    if(ext): return ext.upper()
+    return None
+
+def replaceExt(path, newExt):
+    return path.replace("." + fileExt(path), "." + newExt)
+
 import wave
 import pydub
 

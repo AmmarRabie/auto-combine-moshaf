@@ -53,12 +53,15 @@ class AudioFile:
         return hash(self.path)
     
     def __serialize__(self):
-        return {
+        d = {
             "path": self.path,
             "segments": self.segments,
             "pending_chapters": self.pendingChapters,
             "processed": self.processed,
         }
+        if(self.datPath):
+            d["data_path"] = self.datPath
+        return d
 
     @classmethod
     def from_dict(cls, d):
@@ -71,6 +74,7 @@ class AudioFile:
             pc = ChapterLocation.from_dict(pendingChapter)
             audioFile.pendingChapters.append(pc)
         audioFile.processed = d.get('processed', False)
+        audioFile.datPath = d.get('datPath', None)
         return audioFile
 
 
